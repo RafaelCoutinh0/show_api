@@ -1,49 +1,84 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import psycopg2
 import os
+import json
 
 app = FastAPI()
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+# =============================
+# CONEXÃO AUTOMÁTICA AO POSTGRES
+# =============================
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:pdaUDKzpwZxnGaqHbgXdPERAHmqgThWV@hopper.proxy.rlwy.net:52495/railway"
+)
 
-def get_conn():
+def get_connection():
     return psycopg2.connect(DATABASE_URL)
 
-@app.get("/")
-def home():
-    return {"status": "API ON"}
-
-@app.post("/register")
-def register(data: dict):
-    conn = get_conn()
+# =============================
+# CRIA A TABELA SE NÃO EXISTIR
+# =============================
+def init_db():
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO usuarios (nome, matricula, email, senha)
-        VALUES (%s, %s, %s, %s)
-    """, (
-        data["nome"],
-        data["matricula"],
-        data["email"],
-        data["senha"]
-    ))
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id SERIAL PRIMARY KEY,
+            nome TEXT NOT NULL,
+            matricula TEXT UNIQUE NOT NULL,
+            email TEXT NOT NULL,
+            senha TEXT NOT NULL
+        )
+    """)
     conn.commit()
     cur.close()
     conn.close()
-    return {"success": True}
+
+init_db()
+
+# =============================
+# ROTAS
+# =============================
+
+@app.get("/")
+def root():
+    return {"status": "API ON"}
+
+@app.post("/register")
+async def register(request: Request):
+    data = await request.json()
+
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO usuarios (nome, matricula, email, senha)
+            VALUES (%s, %s, %s, %s)
+        """, (data["nome"], data["matricula"], data["email"], data["senha"]))
+        conn.commit()
+        return {"success": True, "message": "Usuário registrado com sucesso!"}
+    except psycopg2.Error as e:
+        conn.rollback()
+        return {"success": False, "message": str(e)}
+    finally:
+        cur.close()
+        conn.close()
+
 
 @app.post("/login")
-def login(data: dict):
-    conn = get_conn()
+async def login(request: Request):
+    data = await request.json()
+
+    conn = get_connection()
     cur = conn.cursor()
-    cur.execute("""
-        SELECT * FROM usuarios
-        WHERE matricula=%s AND senha=%s
-    """, (
-        data["matricula"],
-        data["senha"]
-    ))
+    cur.execute("SELECT * FROM usuarios WHERE matricula = %s AND senha = %s",
+                (data["matricula"], data["senha"]))
     user = cur.fetchone()
     cur.close()
     conn.close()
 
-    return {"success": bool(user)}
+    if user:
+        return {"success": True, "message": "Login realizado com sucesso!"}
+    else:
+        return {"success": False, "message": "Matrícula ou senha incorreta."}
