@@ -10,7 +10,7 @@ app = FastAPI()
 # =============================
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:pdaUDKzpwZxnGaqHbgXdPERAHmqgThWV@hopper.proxy.rlwy.net:52495/railway"
+    "postgresql://postgres:NrjGBvEfvzUBsVrZELAQZLJgVnIydcua@postgres.railway.internal:5432/railway"
 )
 
 def get_connection():
