@@ -89,7 +89,7 @@ async def save_progress(request: Request):
     data = await request.json()
     matricula = data.get("matricula")
     nivel = data.get("nivel")
-    historico = json.dumps(data.get("historico", []))
+    historico = json.dumps(data.get("historico", []))  # Converte o histórico para JSON
 
     conn = get_connection()
     cur = conn.cursor()
@@ -118,7 +118,7 @@ async def load_progress(matricula: str):
         row = cur.fetchone()
         if row:
             nivel, historico = row
-            return {"success": True, "nivel": nivel, "historico": json.loads(historico)}
+            return {"success": True, "nivel": nivel, "historico": json.loads(historico)}  # Converte o histórico de volta para lista
         return {"success": False, "message": "Progresso não encontrado."}
     except psycopg2.Error as e:
         return {"success": False, "message": str(e)}
