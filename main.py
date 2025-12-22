@@ -91,6 +91,8 @@ async def save_progress(request: Request):
     nivel = data.get("nivel")
     historico = json.dumps(data.get("historico", []))  # Converte o histórico para JSON
 
+    print(f"[DEBUG] Dados recebidos em /save_progress: matricula={matricula}, nivel={nivel}, historico={historico}")
+
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -101,9 +103,11 @@ async def save_progress(request: Request):
             SET nivel = EXCLUDED.nivel, historico = EXCLUDED.historico
         """, (matricula, nivel, historico))
         conn.commit()
+        print("[DEBUG] Progresso salvo com sucesso no banco de dados.")
         return {"success": True, "message": "Progresso salvo com sucesso!"}
     except psycopg2.Error as e:
         conn.rollback()
+        print(f"[ERROR] Erro ao salvar progresso no banco de dados: {e}")
         return {"success": False, "message": str(e)}
     finally:
         cur.close()
@@ -111,6 +115,7 @@ async def save_progress(request: Request):
 
 @app.get("/load_progress")
 async def load_progress(matricula: str):
+    print(f"[DEBUG] Carregando progresso para matricula={matricula}")
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -118,9 +123,12 @@ async def load_progress(matricula: str):
         row = cur.fetchone()
         if row:
             nivel, historico = row
+            print(f"[DEBUG] Progresso encontrado: nivel={nivel}, historico={historico}")
             return {"success": True, "nivel": nivel, "historico": json.loads(historico)}  # Converte o histórico de volta para lista
+        print("[DEBUG] Nenhum progresso encontrado para a matrícula fornecida.")
         return {"success": False, "message": "Progresso não encontrado."}
     except psycopg2.Error as e:
+        print(f"[ERROR] Erro ao carregar progresso do banco de dados: {e}")
         return {"success": False, "message": str(e)}
     finally:
         cur.close()
